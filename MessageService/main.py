@@ -1,67 +1,66 @@
-
-# from fastapi import FastAPI, WebSocket
-# from fastapi.responses import HTMLResponse
-# import json
-
-# app = FastAPI()
-
-# @app.websocket("/ws")
-# async def websocket_endpoint(websocket: WebSocket):
-#     await websocket.accept()
-#     while True:
-#         message = await websocket.receive_text()
-#         # print(data)
-#         messages = ["Sender_id", "Channel_id", message]
-#         await websocket.send_text(json.dumps(messages))
-
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-
+import json
 app = FastAPI()
 
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        # self.active_connections: list[WebSocket] = []
+        self.active_connections = {}
 
-    async def connect(self, websocket: WebSocket):
+    def __len__(self):
+        return len(self.active_connections)
+
+    async def connect(self, client_id: str, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[client_id] = websocket
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        # self.active_connections.remove(websocket)
+        del self.active_connections[websocket]
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+    async def send_personal_message(self, data: str, receiverId: str, receiverName:str, senderId: str, senderName: str, websocket: WebSocket):
+        for key, value in self.active_connections.items():
+            if key == receiverId:
+                await value.send_text(data)
+            if key == senderId:
+                await value.send_text(data)
+
+    async def send_channel_message(self, data: str):
+        # Broad cast to all the users, can be filter to users in the channel only in future
+        for key, value in self.active_connections.items():
+            await value.send_text(data)
+
+    async def send_edit_file(self, message: str, channel: str):
+        pass
 
     async def broadcast(self, message: str, websocket: WebSocket = None):
-        for connection in self.active_connections:
-            if connection != websocket:
-                await connection.send_text(message)
-
-    async def send_direct_message(self, message: str, websocket: WebSocket = None):
-        pass
-
-    async def send_channel_message(self,message:str, websocket: WebSocket = None):
-        pass
-
-    async def send_edit_file_message(self,message:str, websocket: WebSocket = None):
-        pass
+        for key, value in self.active_connections.items():
+            await value.send_text(message)
 
 
 manager = ConnectionManager()
 
 
-
 @app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: int):
-    await manager.connect(websocket)
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(client_id, websocket)
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.send_personal_message(data, websocket)
-            await manager.broadcast(data, websocket)
+            jsonString = json.loads(data)
+            chatMode = jsonString['chatMode']
+            match chatMode:
+                case 1:
+                    await manager.send_personal_message(data, jsonString['receiverId'], jsonString['receiverName'],  jsonString['senderId'], jsonString['senderName'], websocket)
+                case 2:
+                    await manager.send_channel_message(data)
+                case 3:
+                    await manager.send_edit_file(jsonString['content'], jsonString['channel'])
+                case _:
+                        print("default")
+            
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(f"Client #{client_id} left the chat")
