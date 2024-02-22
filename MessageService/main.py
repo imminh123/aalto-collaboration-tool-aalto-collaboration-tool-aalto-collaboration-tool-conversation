@@ -58,7 +58,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             message = await websocket.receive_text()
             jsonString = json.loads(message)
             if jsonString['messageType'] == 1:
-                print(jsonString)
+		chatMode = jsonString['chatMode']
                 match chatMode:
                     case 1:
                         await manager.send_personal_message(message, jsonString['receiverId'], jsonString['receiverName'],  jsonString['senderId'], jsonString['senderName'], websocket)
