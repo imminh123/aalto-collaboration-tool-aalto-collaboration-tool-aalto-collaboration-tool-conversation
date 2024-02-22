@@ -38,7 +38,14 @@ class ConnectionManager:
     async def broadcast(self, message: str, websocket: WebSocket = None):
         for key, value in self.active_connections.items():
             await value.send_text(message)
+    
+    async def send_file_user(self, file: str, channel: str):
+        pass
 
+    async def send_file_channel(self, file: bytes=None, channel: str=""):
+        for key, value in self.active_connections.items():
+            await value.send_bytes(file)
+        pass
 
 manager = ConnectionManager()
 
@@ -48,17 +55,28 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(client_id, websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            jsonString = json.loads(data)
-            chatMode = jsonString['chatMode']
-            match chatMode:
-                case 1:
-                    await manager.send_personal_message(data, jsonString['receiverId'], jsonString['receiverName'],  jsonString['senderId'], jsonString['senderName'], websocket)
-                case 2:
-                    await manager.send_channel_message(data)
-                case 3:
-                    await manager.send_edit_file(jsonString['content'], jsonString['channel'])
-                case _:
+            message = await websocket.receive_text()
+            jsonString = json.loads(message)
+            if jsonString['messageType'] == 1:
+                print(jsonString)
+                match chatMode:
+                    case 1:
+                        await manager.send_personal_message(message, jsonString['receiverId'], jsonString['receiverName'],  jsonString['senderId'], jsonString['senderName'], websocket)
+                    case 2:
+                        await manager.send_channel_message(message)
+                    case 3:
+                        await manager.send_edit_file(jsonString['content'], jsonString['channel'])
+                    case _:
+                        print("default")
+            else:
+                fileSent = await websocket.receive_bytes()
+                chatMode = jsonString['chatMode']
+                match chatMode:
+                    case 1:
+                        await manager.send_file_user(jsonString['file'], jsonString['channel'])
+                    case 2:
+                        await manager.send_file_channel(fileSent, jsonString['channel'])
+                    case _:
                         print("default")
             
     except WebSocketDisconnect:
