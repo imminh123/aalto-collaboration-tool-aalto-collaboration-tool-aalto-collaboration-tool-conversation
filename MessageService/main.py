@@ -9,8 +9,19 @@ app = FastAPI()
 # app.add_middleware(HTTPSRedirectMiddleware)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost"])
 
+messagesHistory = []
 onlineUserList = []
-
+channelList = [
+    {"channelName": "General", 
+     "channelType": "public",
+     "channelMembers": []},
+    {"channelName": "Important", 
+     "channelType": "public",
+     "channelMembers": []},
+    {"channelName": "Random", 
+     "channelType": "public",
+     "channelMembers": []},
+]
 
 class ConnectionManager:
     def __init__(self):
@@ -35,9 +46,15 @@ class ConnectionManager:
 
     async def user_status_boardcast(self, userId: str):
         broadcastMessage = {
-            "messageType": 0,
+            "loginType": 0,
             "onlineUserList": onlineUserList
         }
+        newConnection = self.active_connections.get(userId, None)
+        if(newConnection != None):
+            await newConnection.send_json({
+                "messagesHistory":messagesHistory,
+                "loginType": 1 
+                })
         for key,value in self.active_connections.items():
             pass
             await value.send_json(broadcastMessage)
@@ -64,6 +81,8 @@ class ConnectionManager:
     async def send_file_channel(self, file: bytes=None, channel: str=""):
         for key, value in self.active_connections.items():
             await value.send_bytes(file)
+    
+    async def load_channel_details(self, userId: str):
         pass
 
 manager = ConnectionManager()
@@ -74,12 +93,15 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(client_id, websocket)
     onlineUserList.append(client_id)
     await manager.user_status_boardcast(userId=client_id)
+
     try:
         while True:
             message = await websocket.receive_text()
             jsonString = json.loads(message)
+            # chatMode = 1: send text message
             if jsonString['messageType'] == 1:
                 print(jsonString)
+                messagesHistory.append(jsonString)
                 chatMode = jsonString['chatMode']
                 match chatMode:
                     case 1:
@@ -90,6 +112,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         await manager.send_edit_file(jsonString['content'], jsonString['channel'])
                     case _:
                         print("default")
+            # chatMode = 2: send file
             else:
                 fileSent = await websocket.receive_bytes()
                 chatMode = jsonString['chatMode']
