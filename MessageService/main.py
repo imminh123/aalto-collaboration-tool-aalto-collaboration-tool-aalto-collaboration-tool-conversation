@@ -3,6 +3,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import json
+import uuid
+
 
 app = FastAPI()
 
@@ -12,13 +14,16 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost"])
 messagesHistory = []
 onlineUserList = []
 channelList = [
-    {"channelName": "General", 
+    {"channelId": str(uuid.uuid4()),
+     "channelName": "General", 
      "channelType": "public",
      "channelMembers": []},
-    {"channelName": "Important", 
+    {"channelId": str(uuid.uuid4()),
+     "channelName": "Important", 
      "channelType": "public",
      "channelMembers": []},
-    {"channelName": "Random", 
+    {"channelId": str(uuid.uuid4()),
+     "channelName": "Random",
      "channelType": "public",
      "channelMembers": []},
 ]
@@ -53,6 +58,7 @@ class ConnectionManager:
         if(newConnection != None):
             await newConnection.send_json({
                 "messagesHistory":messagesHistory,
+                "channelHistory":channelList,
                 "loginType": 1 
                 })
         for key,value in self.active_connections.items():
@@ -81,9 +87,20 @@ class ConnectionManager:
     async def send_file_channel(self, file: bytes=None, channel: str=""):
         for key, value in self.active_connections.items():
             await value.send_bytes(file)
-    
-    async def load_channel_details(self, userId: str):
-        pass
+
+    async def create_new_channel(self, jsonObject):
+        print("Creating new channel")
+        channelList.append(jsonObject['newChannel'])
+        for key, value in self.active_connections.items():
+            userChannelList = []
+            for channel in channelList:
+                if key in channel['channelMembers'] or channel['channelType'] == "public":
+                    userChannelList.append(channel)
+            if (key in jsonObject['newChannel']['channelMembers']):
+                await value.send_json({
+                    "channelHistory":userChannelList,
+                    "loginType": 2
+                })
 
 manager = ConnectionManager()
 
@@ -97,7 +114,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     try:
         while True:
             message = await websocket.receive_text()
+            # test = await websocket.receive_json()
             jsonString = json.loads(message)
+            print(jsonString)
             # chatMode = 1: send text message
             if jsonString['messageType'] == 1:
                 print(jsonString)
@@ -113,7 +132,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     case _:
                         print("default")
             # chatMode = 2: send file
-            else:
+            elif jsonString['messageType'] == 2:
                 fileSent = await websocket.receive_bytes()
                 chatMode = jsonString['chatMode']
                 match chatMode:
@@ -123,6 +142,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         await manager.send_file_channel(fileSent, jsonString['channel'])
                     case _:
                         print("default")
+            # chatMode = 4: create new channel
+            elif jsonString['messageType'] == 4:
+                await manager.create_new_channel(jsonObject=jsonString)
             
     except WebSocketDisconnect:
         manager.disconnect(websocket, client_id)
