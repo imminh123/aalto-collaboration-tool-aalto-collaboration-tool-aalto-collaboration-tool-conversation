@@ -89,7 +89,6 @@ class ConnectionManager:
             await value.send_bytes(file)
 
     async def create_new_channel(self, jsonObject):
-        print("Creating new channel")
         channelList.append(jsonObject['newChannel'])
         for key, value in self.active_connections.items():
             userChannelList = []
@@ -101,6 +100,27 @@ class ConnectionManager:
                     "channelHistory":userChannelList,
                     "loginType": 2
                 })
+
+    async def delete_channel(self, jsonObject, channelId: str, websocket: WebSocket):
+        updatedUsersList = [x for x in channelList if x['channelId'] == channelId]
+        if len(updatedUsersList) != 0:
+            if(updatedUsersList[0]['channelType'] == "public"):
+                return
+            updatedUsersList = updatedUsersList[0]['channelMembers']
+        else:
+            return
+        print("test", updatedUsersList)
+        for i, channel in enumerate(channelList):
+            if channel['channelId'] == channelId:
+                del channelList[i]
+                break
+        for user in updatedUsersList:
+            await self.active_connections[user].send_json({
+                "deletedChannel":channelId,
+                "loginType": 3
+            })
+
+
 
 manager = ConnectionManager()
 
@@ -114,12 +134,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     try:
         while True:
             message = await websocket.receive_text()
-            # test = await websocket.receive_json()
             jsonString = json.loads(message)
-            print(jsonString)
+
             # chatMode = 1: send text message
             if jsonString['messageType'] == 1:
-                print(jsonString)
                 messagesHistory.append(jsonString)
                 chatMode = jsonString['chatMode']
                 match chatMode:
@@ -145,6 +163,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             # chatMode = 4: create new channel
             elif jsonString['messageType'] == 4:
                 await manager.create_new_channel(jsonObject=jsonString)
+            elif jsonString['messageType'] == 5:
+                await manager.delete_channel(jsonString,channelId=jsonString['deleteChannel']['channelId'], websocket=websocket)
             
     except WebSocketDisconnect:
         manager.disconnect(websocket, client_id)
