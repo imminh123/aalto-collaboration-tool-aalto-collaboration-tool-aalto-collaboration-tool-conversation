@@ -76,8 +76,14 @@ class ConnectionManager:
         for key, value in self.active_connections.items():
             await value.send_text(data)
 
-    async def send_edit_file(self, message: str, channel: str):
-        pass
+    async def send_edit_file(self, userId: str, fileId: str, content: str):
+        # Broad cast
+        for key, value in self.active_connections.items():
+            await value.send_json({
+                "fileContent":content,
+                "fileId":fileId,
+                "senderId":userId,
+            })
 
     
     async def send_file_user(self, file: str, channel: str):
@@ -108,7 +114,6 @@ class ConnectionManager:
             updatedUsersList = updatedUsersList[0]['channelMembers']
         else:
             return
-        print("test", updatedUsersList)
         for i, channel in enumerate(channelList):
             if channel['channelId'] == channelId:
                 del channelList[i]
@@ -129,12 +134,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(client_id, websocket)
     onlineUserList.append(client_id)
     await manager.user_status_boardcast(userId=client_id)
-
     try:
         while True:
             message = await websocket.receive_text()
             jsonString = json.loads(message)
-            print(jsonString)
 
             # messageType = 1: send text message
             if jsonString['messageType'] == 1:
@@ -145,8 +148,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         await manager.send_personal_message(message, jsonString['receiverId'], jsonString['receiverName'],  jsonString['senderId'], jsonString['senderName'], websocket)
                     case 2:
                         await manager.send_channel_message(message)
-                    case 3:
-                        await manager.send_edit_file(jsonString['content'], jsonString['channel'])
+                    # case 3:
+                    #     await manager.send_edit_file(jsonString['content'], jsonString['channel'])
                     case _:
                         print("default")
             # messageType = 2: send file
@@ -161,6 +164,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     case _:
                         print("default")
             # messageType = 4: create new channel
+            elif jsonString['messageType'] == 3:
+                await manager.send_edit_file(jsonString['senderId'], jsonString['fileId'], jsonString['content'])
             elif jsonString['messageType'] == 4:
                 await manager.create_new_channel(jsonObject=jsonString)
             elif jsonString['messageType'] == 5:
