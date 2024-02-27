@@ -62,7 +62,6 @@ class ConnectionManager:
                 "loginType": 1 
                 })
         for key,value in self.active_connections.items():
-            pass
             await value.send_json(broadcastMessage)
 
     async def send_personal_message(self, data: str, receiverId: str, receiverName:str, senderId: str, senderName: str, websocket: WebSocket):
@@ -135,8 +134,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         while True:
             message = await websocket.receive_text()
             jsonString = json.loads(message)
+            print(jsonString)
 
-            # chatMode = 1: send text message
+            # messageType = 1: send text message
             if jsonString['messageType'] == 1:
                 messagesHistory.append(jsonString)
                 chatMode = jsonString['chatMode']
@@ -149,7 +149,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         await manager.send_edit_file(jsonString['content'], jsonString['channel'])
                     case _:
                         print("default")
-            # chatMode = 2: send file
+            # messageType = 2: send file
             elif jsonString['messageType'] == 2:
                 fileSent = await websocket.receive_bytes()
                 chatMode = jsonString['chatMode']
@@ -160,7 +160,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                         await manager.send_file_channel(fileSent, jsonString['channel'])
                     case _:
                         print("default")
-            # chatMode = 4: create new channel
+            # messageType = 4: create new channel
             elif jsonString['messageType'] == 4:
                 await manager.create_new_channel(jsonObject=jsonString)
             elif jsonString['messageType'] == 5:

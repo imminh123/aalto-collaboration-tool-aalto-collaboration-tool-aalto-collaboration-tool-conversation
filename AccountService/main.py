@@ -72,7 +72,6 @@ def verify_password(plain_password, hashed_password):
 # Registration endpoint
 @app.post("/register/", response_model=User)
 async def register(user: UserRegister):
-    print("Test")
     if user.username in fake_users_db:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = get_password_hash(user.password)
@@ -81,12 +80,9 @@ async def register(user: UserRegister):
         "username": user.username,
         "hashed_password": hashed_password,
         "user_id": user_id,
-        # "disabled": False,
     }
-    # return "test"
     return {
         "username": user.username,
-        # "disabled": False,
         "user_id": user_id,
     }
 
@@ -96,11 +92,13 @@ async def login(user_login: UserLogin):
     user = get_user(fake_users_db, user_login.username)
     if not user or not verify_password(user_login.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+    else:
     # return {"message": "Login successful for user: {}".format(user.username)}
-    return {
-        "username": user.username,
-        "user_id": user.user_id,
-    }
+        return {
+            "username": user.username,
+            "user_id": user.user_id,
+            "details": "Login successful"
+        }
 
 @app.get("/users")
 async def listUser():
