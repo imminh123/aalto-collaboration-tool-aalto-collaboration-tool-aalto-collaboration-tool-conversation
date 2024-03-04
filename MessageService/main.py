@@ -9,7 +9,7 @@ import uuid
 app = FastAPI()
 
 # app.add_middleware(HTTPSRedirectMiddleware)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost"])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 messagesHistory = []
 onlineUserList = []
