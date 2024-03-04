@@ -21,3 +21,4 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     user_id = Column(String, index=True)
+    public_key = Column(String, index=True)
