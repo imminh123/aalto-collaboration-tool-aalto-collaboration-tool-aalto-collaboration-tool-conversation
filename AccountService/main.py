@@ -98,14 +98,16 @@ async def login(user_login: UserLogin):
     if not user or not verify_password(user_login.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     else:
+        # print(user.public_key)
     # return {"message": "Login successful for user: {}".format(user.username)}
         return {
             "username": user.username,
             "user_id": user.user_id,
+            "public_key": user.public_key,
             "details": "Login successful"
         }
 
 @app.get("/users")
 async def listUser():
-    users_list = [{"username": value["username"], "user_id": value["user_id"]} for key, value in fake_users_db.items()]
+    users_list = [{"username": value["username"], "user_id": value["user_id"], "public_key": value["public_key"]} for key, value in fake_users_db.items()]
     return users_list
