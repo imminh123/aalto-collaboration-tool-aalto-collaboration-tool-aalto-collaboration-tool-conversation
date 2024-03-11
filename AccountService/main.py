@@ -6,15 +6,17 @@ from fastapi import FastAPI, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uuid
 from sqlalchemy.future import select
+import secrets
 from sqlalchemy.orm import Session
-from database import AsyncSessionLocal, Base, engine, User
+from .database import AsyncSessionLocal, Base, engine, User
 import asyncio
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allows only specific origins
+    # allow_origins=["http://127.0.0.1:3001", "http://localhost:3001", "http://172.31.0.1:3001"],  # Allows only specific origins
+    allow_origins=["*"],  # Allows only specific origins
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -40,11 +42,13 @@ class User(BaseModel):
 class UserInDB(User):
     hashed_password: str
     user_id: str
+    public_key: str
 
 # User registration model
 class UserRegister(BaseModel):
     username: str
     password: str
+    publicKey: str
 
 # Login model
 class UserLogin(BaseModel):
@@ -80,6 +84,7 @@ async def register(user: UserRegister):
         "username": user.username,
         "hashed_password": hashed_password,
         "user_id": user_id,
+        "public_key": user.publicKey
     }
     return {
         "username": user.username,
@@ -93,14 +98,16 @@ async def login(user_login: UserLogin):
     if not user or not verify_password(user_login.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     else:
+        # print(user.public_key)
     # return {"message": "Login successful for user: {}".format(user.username)}
         return {
             "username": user.username,
             "user_id": user.user_id,
+            "public_key": user.public_key,
             "details": "Login successful"
         }
 
 @app.get("/users")
 async def listUser():
-    users_list = [{"username": value["username"], "user_id": value["user_id"]} for key, value in fake_users_db.items()]
+    users_list = [{"username": value["username"], "user_id": value["user_id"], "public_key": value["public_key"]} for key, value in fake_users_db.items()]
     return users_list

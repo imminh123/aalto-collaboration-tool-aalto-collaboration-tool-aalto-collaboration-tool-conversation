@@ -5,4 +5,5 @@ python-dotenv==1.0.0
 redis==5.0.1
 rq==1.15.1
 fastapi==0.110.0
-
+sqlalchemy==2.0.28
+aiosqlite==0.20.0
