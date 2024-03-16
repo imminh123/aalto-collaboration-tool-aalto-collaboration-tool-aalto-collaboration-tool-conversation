@@ -128,15 +128,16 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(client_id, websocket)
     onlineUserList.append(client_id)
+    
     await manager.user_status_boardcast(userId=client_id)
     try:
         while True:
             message = await websocket.receive_text()
+            print(message)
             jsonString = json.loads(message)
 
             # messageType = 1: send text message

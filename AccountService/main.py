@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy.future import select
 import secrets
 from sqlalchemy.orm import Session
-from .database import AsyncSessionLocal, Base, engine, User
+# from .database import AsyncSessionLocal, Base, engine, User
 import asyncio
 
 app = FastAPI()
@@ -111,3 +111,10 @@ async def login(user_login: UserLogin):
 async def listUser():
     users_list = [{"username": value["username"], "user_id": value["user_id"], "public_key": value["public_key"]} for key, value in fake_users_db.items()]
     return users_list
+
+@app.get("/users/{userid}")
+def read_item(userid: str):
+    for key, value in fake_users_db.items():
+        if value['user_id'] == userid:
+            return value
+    return {}
