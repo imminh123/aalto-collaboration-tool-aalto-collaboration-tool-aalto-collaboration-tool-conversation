@@ -26,24 +26,24 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 messagesHistory = []
 onlineUserList = []
 channelList = [
-    {
-        "channelId": str(uuid.uuid4()),
-        "channelName": "General",
-        "channelType": "public",
-        "channelMembers": [],
-    },
-    {
-        "channelId": str(uuid.uuid4()),
-        "channelName": "Important",
-        "channelType": "public",
-        "channelMembers": [],
-    },
-    {
-        "channelId": str(uuid.uuid4()),
-        "channelName": "Random",
-        "channelType": "public",
-        "channelMembers": [],
-    },
+    # {
+    #     "channelId": str(uuid.uuid4()),
+    #     "channelName": "General",
+    #     "channelType": "public",
+    #     "channelMembers": [],
+    # },
+    # {
+    #     "channelId": str(uuid.uuid4()),
+    #     "channelName": "Important",
+    #     "channelType": "public",
+    #     "channelMembers": [],
+    # },
+    # {
+    #     "channelId": str(uuid.uuid4()),
+    #     "channelName": "Random",
+    #     "channelType": "public",
+    #     "channelMembers": [],
+    # },
 ]
 
 
@@ -55,9 +55,10 @@ class ConnectionManager:
     def __len__(self):
         return len(self.active_connections)
 
-    async def connect(self, client_id: str, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket,  client_id: str = None):
         await websocket.accept()
-        self.active_connections[client_id] = websocket
+        if client_id is not None:
+            self.active_connections[client_id] = websocket
 
     def disconnect(self, websocket: WebSocket, client_id: str):
         removedConnection = self.active_connections.get(client_id, None)
@@ -154,11 +155,14 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
-
+@app.websocket("/ws/")
+async def websocket_endpoint_catchall(websocket: WebSocket):
+    print("Catch all request")
+    await manager.connect(websocket=websocket)
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(client_id, websocket)
+    await manager.connect(websocket, client_id)
     onlineUserList.append(client_id)
 
     await manager.user_status_boardcast(userId=client_id)
@@ -189,18 +193,18 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     case _:
                         print("default")
             # messageType = 2: send file
-            elif jsonString["messageType"] == 2:
-                fileSent = await websocket.receive_bytes()
-                chatMode = jsonString["chatMode"]
-                match chatMode:
-                    case 1:
-                        await manager.send_file_user(
-                            jsonString["file"], jsonString["channel"]
-                        )
-                    case 2:
-                        await manager.send_file_channel(fileSent, jsonString["channel"])
-                    case _:
-                        print("default")
+            # elif jsonString["messageType"] == 2:
+            #     fileSent = await websocket.receive_bytes()
+            #     chatMode = jsonString["chatMode"]
+            #     match chatMode:
+            #         case 1:
+            #             await manager.send_file_user(
+            #                 jsonString["file"], jsonString["channel"]
+            #             )
+            #         case 2:
+            #             await manager.send_file_channel(fileSent, jsonString["channel"])
+            #         case _:
+            #             print("default")
             # messageType = 4: create new channel
             elif jsonString["messageType"] == 3:
                 await manager.send_edit_file(
