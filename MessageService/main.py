@@ -169,8 +169,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     try:
         while True:
             message = await websocket.receive_text()
-            print(message)
             jsonString = json.loads(message)
+            print(message)
 
             # messageType = 1: send text message
             if jsonString["messageType"] == 1:
@@ -187,6 +187,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                             websocket,
                         )
                     case 2:
+                        print(message)
+                        print(message)
+                        print(message)
+                        print(message)
                         await manager.send_channel_message(message)
                     # case 3:
                     #     await manager.send_edit_file(jsonString['content'], jsonString['channel'])
